@@ -31,4 +31,21 @@ async def hello(ctx):
   await ctx.send(f"你好啊{ctx.author.mention}")
 
 
-bot.run(token)
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is aliveeeee"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port, debug=False)
+
+def keep_alive():
+    t = Thread(target=run_flask)
+    t.start()
+
+
+if __name__ == '__main__':
+    keep_alive() 
+    bot.run(token)

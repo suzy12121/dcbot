@@ -3,6 +3,7 @@ from discord.ext import commands
 import os
 from flask import Flask
 from dotenv import load_dotenv
+from threading import Thread
 
 load_dotenv()
 token = os.getenv('TOKEN')
@@ -29,8 +30,7 @@ async def on_message(message):
     
 @bot.command()
 async def hello(ctx):
-  await ctx.send(f"你好啊{ctx.author.mention}")
-
+    await ctx.send(f"你好啊{ctx.author.mention}")
 
 app = Flask('')
 
@@ -46,8 +46,6 @@ def keep_alive():
     t = Thread(target=run_flask)
     t.start()
 
-
 if __name__ == '__main__':
     keep_alive() 
     bot.run(token)
-

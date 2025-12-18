@@ -1,51 +1,75 @@
 import discord
-from discord.ext import commands
+import asyncio
 import os
-from flask import Flask
+from discord.ext import commands
 from dotenv import load_dotenv
+from flask import Flask
 from threading import Thread
 
 load_dotenv()
 token = os.getenv('TOKEN')
 
 intents = discord.Intents.default()
-intents.message_content = True
+intents.message_content = True 
 intents.guild_messages = True
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='$', intents=intents)
+
+async def load_extensions():
+    for filename in os.listdir('./cogs'):
+        if filename.endswith('.py'):
+            await bot.load_extension(f'cogs.{filename[:-3]}')
 
 @bot.event
 async def on_ready():
-    print(f'We have logged in as {bot.user}')
+    print(f"{bot.user} logged in!")
 
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return
-
-    if "bot" in message.content.lower() and "hi" in message.content.lower():
-        await message.channel.send(f"你好 {message.author.display_name}!")
-        
-    await bot.process_commands(message)
-    
+# --- 🧹 THE MAGIC FIX COMMAND ---
 @bot.command()
-async def hello(ctx):
-    await ctx.send(f"你好啊{ctx.author.mention}")
+async def fixsync(ctx):
+    msg = await ctx.send("⏳ Fixing duplicates... (This might take a few seconds)")
+    
+    # STEP 1: WIPE GLOBAL COMMANDS
+    # We clear the internal list and sync "nothing" to Discord Global.
+    # This removes the stubborn global duplicates.
+    bot.tree.clear_commands(guild=None)
+    await bot.tree.sync()
+    
+    # STEP 2: RELOAD COGS
+    # Since we just wiped the commands from memory, we re-read the files.
+    for filename in os.listdir('./cogs'):
+        if filename.endswith('.py'):
+            await bot.reload_extension(f'cogs.{filename[:-3]}')
+            
+    # STEP 3: SYNC TO GUILD ONLY
+    # Now we register the commands ONLY to this server (Instant & No duplicates).
+    bot.tree.copy_global_to(guild=ctx.guild)
+    await bot.tree.sync(guild=ctx.guild)
+    
+    await msg.edit(content="✅ **Duplicates Fixed!** Global commands wiped, Guild commands active.")
+
 
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is aliveeeee"
+    return "上線了"
 
 def run_flask():
+  
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port, debug=False)
 
-def keep_alive():
+async def main():
+   
     t = Thread(target=run_flask)
+    t.daemon = True
     t.start()
+    
+ 
+    async with bot:
+        await load_extensions()
+        await bot.start(token)
 
 if __name__ == '__main__':
-    keep_alive() 
-    bot.run(token)
+  	asyncio.run(main())
